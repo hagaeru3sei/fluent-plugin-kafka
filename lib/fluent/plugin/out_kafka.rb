@@ -21,6 +21,10 @@ class Fluent::KafkaOutput < Fluent::Output
   config_param :ack_timeout_ms, :integer, :default => 1500
   config_param :compression_codec, :string, :default => 'none'
 
+  # extend settings
+  config_param :new_keys, :string, :default => nil
+  config_param :convert_values, :string, :default => nil
+
   attr_accessor :output_data_type
   attr_accessor :field_separator
 
@@ -94,6 +98,11 @@ class Fluent::KafkaOutput < Fluent::Output
                            nil
                          end
 
+    @n_keys = @new_keys.split(',').inject({}) { |n_keys, kv|
+      key, default_value = kv.split(':')
+      n_keys[key] = default_value; n_keys
+    }
+
   end
 
   def start
@@ -134,7 +143,14 @@ class Fluent::KafkaOutput < Fluent::Output
         record['tag'] = tag if @output_include_tag
         topic = record['topic'] || self.default_topic || tag
         partition_key = record['partition_key'] || @default_partition_key
-        value = @formatter.nil? ? parse_record(record) : @formatter.format(tag, time, record)
+
+        if @new_keys.length > 0
+          new_record = convert_columns(record)
+        else
+          new_record = record
+        end
+
+        value = @formatter.nil? ? parse_record(new_record) : @formatter.format(tag, time, new_record)
         log.trace("message send to #{topic} with key: #{partition_key} and value: #{value}.")
         message = Poseidon::MessageToSend.new(topic, value, partition_key)
         @producer.send_messages([message])
@@ -144,6 +160,26 @@ class Fluent::KafkaOutput < Fluent::Output
       refresh_producer()
       raise e
     end
+  end
+
+  def convert_columns(record)
+    result = record.inject({}) { |result, (key, value)|
+      result[key] = convert_value(value) if @n_keys.key?(key)
+      result
+    }
+    @n_keys.each { |key, value|
+      result[key] = value unless result.key?(key)
+    }
+    result
+  end
+
+  def convert_value(value)
+    @convert_values.split(',').each { |conv_value|
+      orig, conv = conv_value.split(':')
+      conv = '' if conv == '""' or conv == "''"
+      return conv if value == orig
+    } if @convert_values.length > 0
+    value
   end
 
 end
