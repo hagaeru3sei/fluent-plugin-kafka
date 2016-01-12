@@ -23,6 +23,10 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
   config_param :ack_timeout_ms, :integer, :default => 1500
   config_param :compression_codec, :string, :default => 'none'
 
+  # extend settings
+  config_param :new_keys, :string, :default => nil
+  config_param :convert_values, :string, :default => nil
+
   attr_accessor :output_data_type
   attr_accessor :field_separator
 
@@ -75,6 +79,11 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
                    end
 
     @formatter_proc = setup_formatter(conf)
+
+    @n_keys = @new_keys.split(',').inject({}) { |n_keys, kv|
+      key, default_value = kv.split(':')
+      n_keys[key] = default_value; n_keys
+    }
   end
 
   def start
@@ -130,10 +139,16 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
         topic = record['topic'] || @default_topic || tag
         partition_key = record['partition_key'] || @default_partition_key
 
+        if @new_keys.length > 0
+          new_record = convert_columns(record)
+        else
+          new_record = record
+        end
+
         records_by_topic[topic] ||= 0
         bytes_by_topic[topic] ||= 0
 
-        record_buf = @formatter_proc.call(tag, time, record)
+        record_buf = @formatter_proc.call(tag, time, new_record)
         record_buf_bytes = record_buf.bytesize
         if messages.length > 0 and messages_bytes + record_buf_bytes > @kafka_agg_max_bytes
           log.on_trace { log.trace("#{messages.length} messages send.") }
@@ -160,4 +175,25 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
     # Raise exception to retry sendind messages
     raise e
   end
+
+  def convert_columns(record)
+    result = record.inject({}) { |result, (key, value)|
+      result[key] = convert_value(value) if @n_keys.key?(key)
+      result
+    }
+    @n_keys.each { |key, value|
+      result[key] = value unless result.key?(key)
+    }
+    result
+  end
+
+  def convert_value(value)
+    @convert_values.split(',').each { |conv_value|
+      orig, conv = conv_value.split(':')
+      conv = '' if conv == '""' or conv == "''"
+      return conv if value == orig
+    } if @convert_values.length > 0
+    value
+  end
+
 end
