@@ -100,6 +100,9 @@ See also [Poseidon::PartitionConsumer](http://www.rubydoc.info/github/bpot/posei
       brokers             <broker1_host>:<broker1_port>,<broker2_host>:<broker2_port>,.. # Set brokers directly
       zookeeper           <zookeeper_host>:<zookeeper_port> # Set brokers via Zookeeper
 
+      new_keys            <key1:default_value1>,<key2:default_value2>,.. # Update records by new_keys
+      convert_values      <origin_value1:conv_value1>,<origin_value2,conv_value2>,.. # Change orig to conv value
+
       default_topic       <output topic>
       default_partition_key (string)   :default => nil
       output_data_type    (json|ltsv|msgpack|attr:<record name>|<formatter name>)
@@ -146,6 +149,9 @@ If key name `partition_key` exists in a message, this plugin set its value of pa
       # Brokers: you can choose either brokers or zookeeper.
       brokers             <broker1_host>:<broker1_port>,<broker2_host>:<broker2_port>,.. # Set brokers directly
       zookeeper           <zookeeper_host>:<zookeeper_port> # Set brokers via Zookeeper
+
+      new_keys            <key1:default_value1>,<key2:default_value2>,.. # Update records by new_keys
+      convert_values      <origin_value1:conv_value1>,<origin_value2,conv_value2>,.. # Change orig to conv value
 
       default_topic       <output topic>
       default_partition_key (string)   :default => nil
