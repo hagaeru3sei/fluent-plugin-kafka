@@ -22,8 +22,8 @@ class Fluent::KafkaOutput < Fluent::Output
   config_param :compression_codec, :string, :default => 'none'
 
   # extend settings
-  config_param :new_keys, :string, :default => nil
-  config_param :convert_values, :string, :default => nil
+  config_param :new_keys, :string, :default => ''
+  config_param :convert_values, :string, :default => ''
 
   attr_accessor :output_data_type
   attr_accessor :field_separator
@@ -101,7 +101,7 @@ class Fluent::KafkaOutput < Fluent::Output
     @n_keys = @new_keys.split(',').inject({}) { |n_keys, kv|
       key, default_value = kv.split(':')
       n_keys[key] = default_value; n_keys
-    }
+    } if @new_keys.length > 0
 
   end
 
