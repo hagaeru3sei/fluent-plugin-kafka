@@ -84,6 +84,16 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
       key, default_value = kv.split(':')
       n_keys[key] = default_value; n_keys
     } if @new_keys.length > 0
+
+    @conv_values = @convert_values.split(',').inject({}) { |conv_values, conv_value|
+      orig, conv = conv_value.split(':')
+      if conv == '""' or conv == "''"
+        conv_values[orig] = ''
+      else
+        conv_values[orig] = conv
+      end
+      conv_values
+    } if @convert_values.length > 0
   end
 
   def start
@@ -188,12 +198,11 @@ class Fluent::KafkaOutputBuffered < Fluent::BufferedOutput
   end
 
   def convert_value(value)
-    @convert_values.split(',').each { |conv_value|
-      orig, conv = conv_value.split(':')
-      conv = '' if conv == '""' or conv == "''"
-      return conv if value == orig
-    } if @convert_values.length > 0
-    value
+    if @conv_values.key?(value)
+      @conv_values[value]
+    else
+      value
+    end
   end
 
 end
